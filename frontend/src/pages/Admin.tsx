@@ -22,6 +22,12 @@ interface Product {
   name: string
   description: string
   price: number
+  current_price: number
+  original_price: number
+  is_on_sale: boolean
+  sale_price?: number | null
+  sale_start_time?: string | null
+  sale_end_time?: string | null
   image_url: string
   stock: number
 }
@@ -67,6 +73,9 @@ export function Admin() {
     name: "",
     description: "",
     price: "",
+    sale_price: "",
+    sale_start_time: "",
+    sale_end_time: "",
     image_url: "",
     stock: ""
   })
@@ -165,12 +174,46 @@ export function Admin() {
     })
   }
 
+  const validateSaleFields = (): string | null => {
+    const hasSalePrice = formData.sale_price !== ""
+    const hasStartTime = formData.sale_start_time !== ""
+    const hasEndTime = formData.sale_end_time !== ""
+
+    const filled = [hasSalePrice, hasStartTime, hasEndTime].filter(Boolean).length
+    if (filled > 0 && filled < 3) {
+      return "限时特价字段要么都填（折扣价、开始时间、结束时间），要么都不填"
+    }
+
+    if (filled === 3) {
+      const salePrice = Number(formData.sale_price)
+      const originalPrice = Number(formData.price)
+      if (salePrice >= originalPrice) {
+        return "折扣价必须小于原价"
+      }
+      if (new Date(formData.sale_end_time) <= new Date(formData.sale_start_time)) {
+        return "结束时间必须晚于开始时间"
+      }
+    }
+
+    return null
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const validationError = validateSaleFields()
+    if (validationError) {
+      toast.error(validationError)
+      return
+    }
+
     try {
       const payload = {
         ...formData,
         price: Number(formData.price),
+        sale_price: formData.sale_price !== "" ? Number(formData.sale_price) : null,
+        sale_start_time: formData.sale_start_time || null,
+        sale_end_time: formData.sale_end_time || null,
         stock: Number(formData.stock)
       }
       
@@ -183,7 +226,16 @@ export function Admin() {
       }
       setIsDialogOpen(false)
       setEditingProduct(null)
-      setFormData({ name: "", description: "", price: "", image_url: "", stock: "" })
+      setFormData({
+        name: "",
+        description: "",
+        price: "",
+        sale_price: "",
+        sale_start_time: "",
+        sale_end_time: "",
+        image_url: "",
+        stock: ""
+      })
       fetchProducts()
     } catch (error) {
       toast.error("操作失败")
@@ -207,6 +259,9 @@ export function Admin() {
       name: product.name,
       description: product.description,
       price: String(product.price),
+      sale_price: product.sale_price !== null && product.sale_price !== undefined ? String(product.sale_price) : "",
+      sale_start_time: (product as any).sale_start_time_local || "",
+      sale_end_time: (product as any).sale_end_time_local || "",
       image_url: product.image_url,
       stock: String(product.stock)
     })
@@ -215,7 +270,16 @@ export function Admin() {
 
   const openCreate = () => {
     setEditingProduct(null)
-    setFormData({ name: "", description: "", price: "", image_url: "", stock: "" })
+    setFormData({
+      name: "",
+      description: "",
+      price: "",
+      sale_price: "",
+      sale_start_time: "",
+      sale_end_time: "",
+      image_url: "",
+      stock: ""
+    })
     setIsDialogOpen(true)
   }
 
@@ -265,6 +329,7 @@ export function Admin() {
                     </th>
                     <th className="p-4">名称</th>
                     <th className="p-4">价格</th>
+                    <th className="p-4">特价</th>
                     <th className="p-4">库存</th>
                     <th className="p-4 text-right">操作</th>
                   </tr>
@@ -280,7 +345,22 @@ export function Admin() {
                         />
                       </td>
                       <td className="p-4 font-medium">{product.name}</td>
-                      <td className="p-4">¥{Number(product.price).toFixed(2)}</td>
+                      <td className="p-4">
+                        {product.is_on_sale ? (
+                          <span className="text-gray-400 line-through">¥{Number(product.price).toFixed(2)}</span>
+                        ) : (
+                          <span>¥{Number(product.price).toFixed(2)}</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        {product.is_on_sale ? (
+                          <span className="text-red-500 font-medium">¥{Number(product.current_price).toFixed(2)}</span>
+                        ) : product.sale_price ? (
+                          <span className="text-gray-500 text-xs">未开始/已结束</span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </td>
                       <td className="p-4">{product.stock}</td>
                       <td className="p-4 text-right flex justify-end gap-2">
                         <Button variant="ghost" size="icon" onClick={() => openEdit(product)}>
@@ -431,12 +511,32 @@ export function Admin() {
              </div>
              <div className="grid grid-cols-2 gap-4">
                <div className="space-y-2">
-                 <Label>价格 (¥)</Label>
+                 <Label>原价 (¥)</Label>
                  <Input type="number" step="0.01" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} required />
                </div>
                <div className="space-y-2">
                  <Label>库存</Label>
                  <Input type="number" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} required />
+               </div>
+             </div>
+
+             <div className="border-t pt-4">
+               <h4 className="font-medium text-sm mb-3">限时特价设置（可选）</h4>
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-2">
+                   <Label>折扣价 (¥)</Label>
+                   <Input type="number" step="0.01" value={formData.sale_price} onChange={e => setFormData({...formData, sale_price: e.target.value})} placeholder="留空则不设置" />
+                 </div>
+                 <div className="space-y-2">
+                   <Label>开始时间</Label>
+                   <Input type="datetime-local" value={formData.sale_start_time} onChange={e => setFormData({...formData, sale_start_time: e.target.value})} />
+                 </div>
+               </div>
+               <div className="mt-4">
+                 <div className="space-y-2">
+                   <Label>结束时间</Label>
+                   <Input type="datetime-local" value={formData.sale_end_time} onChange={e => setFormData({...formData, sale_end_time: e.target.value})} />
+                 </div>
                </div>
              </div>
              <div className="space-y-2">

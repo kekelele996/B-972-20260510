@@ -9,6 +9,33 @@ use App\Utils\Response;
 
 class ProductController
 {
+    private function validateSaleFields(array $data): ?string
+    {
+        $hasSalePrice = isset($data['sale_price']) && $data['sale_price'] !== '' && $data['sale_price'] !== null;
+        $hasStartTime = !empty($data['sale_start_time']);
+        $hasEndTime = !empty($data['sale_end_time']);
+
+        $filled = array_filter([$hasSalePrice, $hasStartTime, $hasEndTime]);
+        if (count($filled) > 0 && count($filled) < 3) {
+            return '限时特价字段要么都填（折扣价、开始时间、结束时间），要么都不填';
+        }
+
+        if (count($filled) === 3) {
+            $salePrice = (float)$data['sale_price'];
+            $originalPrice = (float)($data['price'] ?? 0);
+            if ($salePrice >= $originalPrice) {
+                return '折扣价必须小于原价';
+            }
+            $startTime = strtotime((string)$data['sale_start_time']);
+            $endTime = strtotime((string)$data['sale_end_time']);
+            if ($endTime <= $startTime) {
+                return '结束时间必须晚于开始时间';
+            }
+        }
+
+        return null;
+    }
+
     public function index(): void
     {
         $page = (int)Request::query('page', 1);
@@ -43,10 +70,18 @@ class ProductController
             Response::json(['error' => 'Missing required fields'], 400);
         }
 
+        $validationError = $this->validateSaleFields($data);
+        if ($validationError !== null) {
+            Response::json(['error' => $validationError], 400);
+        }
+
         Product::create([
             'name' => $name,
             'description' => (string)($data['description'] ?? ''),
             'price' => $price,
+            'sale_price' => isset($data['sale_price']) && $data['sale_price'] !== '' ? $data['sale_price'] : null,
+            'sale_start_time' => !empty($data['sale_start_time']) ? (string)$data['sale_start_time'] : null,
+            'sale_end_time' => !empty($data['sale_end_time']) ? (string)$data['sale_end_time'] : null,
             'image_url' => (string)($data['image_url'] ?? ''),
             'stock' => (int)($data['stock'] ?? 0),
         ]);
@@ -68,10 +103,18 @@ class ProductController
             Response::json(['error' => 'Product not found'], 404);
         }
 
+        $validationError = $this->validateSaleFields($data);
+        if ($validationError !== null) {
+            Response::json(['error' => $validationError], 400);
+        }
+
         $product->fill([
             'name' => (string)($data['name'] ?? $product->name),
             'description' => (string)($data['description'] ?? $product->description),
             'price' => $data['price'] ?? $product->price,
+            'sale_price' => isset($data['sale_price']) && $data['sale_price'] !== '' ? $data['sale_price'] : null,
+            'sale_start_time' => !empty($data['sale_start_time']) ? (string)$data['sale_start_time'] : null,
+            'sale_end_time' => !empty($data['sale_end_time']) ? (string)$data['sale_end_time'] : null,
             'image_url' => (string)($data['image_url'] ?? $product->image_url),
             'stock' => isset($data['stock']) ? (int)$data['stock'] : (int)$product->stock,
         ]);

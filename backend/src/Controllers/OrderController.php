@@ -49,13 +49,13 @@ class OrderController
                     $productsData[] = [
                         'productId' => $productId,
                         'qty' => $qty,
-                        'price' => $product->price,
+                        'price' => $product->current_price,
                         'name' => $product->name,
                         'image_url' => $product->image_url,
                         'product' => $product
                     ];
                     
-                    $calculatedTotal += $product->price * $qty;
+                    $calculatedTotal += $product->current_price * $qty;
                 }
 
                 $order = Order::create([
