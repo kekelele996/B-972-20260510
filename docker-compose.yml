@@ -1,0 +1,60 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: bunshop-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: bunshop
+      MYSQL_USER: user
+      MYSQL_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bunshop-backend
+    restart: unless-stopped
+    ports:
+      - "8972:80"
+    volumes:
+      - ./backend:/var/www/html
+      - /var/www/html/vendor
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_NAME: bunshop
+      DB_USER: user
+      DB_PASSWORD: root
+      # 兼容旧变量名
+      DB_PASS: root
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bunshop-frontend
+    restart: unless-stopped
+    ports:
+      - "972:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      VITE_API_BASE_URL: http://localhost:8972/api
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
