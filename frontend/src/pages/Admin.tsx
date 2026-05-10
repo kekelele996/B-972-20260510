@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { Pencil, Trash2, Plus, Package, CheckCircle2 } from "lucide-react"
+import { Pencil, Trash2, Plus, Package, CheckCircle2, Tag } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 
@@ -45,11 +45,27 @@ interface Order {
   items: OrderItem[];
 }
 
+interface Promotion {
+  id: number
+  product_id: number
+  product_name: string | null
+  original_price: string | null
+  discount_price: string
+  start_time: string
+  end_time: string
+  is_active: boolean
+  created_at: string
+}
+
 export function Admin() {
   const [products, setProducts] = useState<Product[]>([])
   const [orders, setOrders] = useState<Order[]>([])
+  const [promotions, setPromotions] = useState<Promotion[]>([])
+  const [allProducts, setAllProducts] = useState<Product[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isPromoDialogOpen, setIsPromoDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
   
   // Confirmation Dialog State
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -69,6 +85,13 @@ export function Admin() {
     price: "",
     image_url: "",
     stock: ""
+  })
+
+  const [promoFormData, setPromoFormData] = useState({
+    product_id: "",
+    discount_price: "",
+    start_time: "",
+    end_time: ""
   })
 
   // Pagination for products
@@ -121,10 +144,33 @@ export function Admin() {
     }
   }
 
+  const fetchPromotions = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/promotions`)
+      setPromotions(res.data)
+    } catch (error) {
+      toast.error("加载促销活动失败")
+    }
+  }
+
+  const fetchAllProducts = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/products`)
+      if (res.data && res.data.products) {
+        setAllProducts(res.data.products)
+      } else {
+        setAllProducts(res.data)
+      }
+    } catch (error) {
+      toast.error("加载商品列表失败")
+    }
+  }
+
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchProducts(productPage)
       fetchOrders(orderPage)
+      fetchPromotions()
     }
   }, [user, productPage, orderPage])
 
@@ -219,6 +265,69 @@ export function Admin() {
     setIsDialogOpen(true)
   }
 
+  const handlePromoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const payload = {
+        product_id: Number(promoFormData.product_id),
+        discount_price: Number(promoFormData.discount_price),
+        start_time: promoFormData.start_time,
+        end_time: promoFormData.end_time,
+      }
+      if (editingPromotion) {
+        await axios.put(`${API_URL}/promotions?id=${editingPromotion.id}`, payload)
+        toast.success("促销活动已更新")
+      } else {
+        await axios.post(`${API_URL}/promotions`, payload)
+        toast.success("促销活动已创建")
+      }
+      setIsPromoDialogOpen(false)
+      setEditingPromotion(null)
+      setPromoFormData({ product_id: "", discount_price: "", start_time: "", end_time: "" })
+      fetchPromotions()
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || "操作失败"
+      toast.error(msg)
+    }
+  }
+
+  const handlePromoDelete = async (id: number) => {
+    setConfirmDialog({
+      open: true,
+      message: "确定要删除该促销活动吗？",
+      onConfirm: async () => {
+        try {
+          await axios.delete(`${API_URL}/promotions?id=${id}`)
+          toast.success("促销活动已删除")
+          fetchPromotions()
+          setConfirmDialog({ open: false, message: "", onConfirm: () => {} })
+        } catch (error) {
+          toast.error("删除失败")
+          setConfirmDialog({ open: false, message: "", onConfirm: () => {} })
+        }
+      }
+    })
+  }
+
+  const openPromoCreate = async () => {
+    await fetchAllProducts()
+    setEditingPromotion(null)
+    setPromoFormData({ product_id: "", discount_price: "", start_time: "", end_time: "" })
+    setIsPromoDialogOpen(true)
+  }
+
+  const openPromoEdit = async (promo: Promotion) => {
+    await fetchAllProducts()
+    setEditingPromotion(promo)
+    setPromoFormData({
+      product_id: String(promo.product_id),
+      discount_price: String(promo.discount_price),
+      start_time: promo.start_time.slice(0, 16),
+      end_time: promo.end_time.slice(0, 16),
+    })
+    setIsPromoDialogOpen(true)
+  }
+
 
 
   if (user?.role !== 'admin') {
@@ -232,6 +341,7 @@ export function Admin() {
       <Tabs defaultValue="products">
         <TabsList className="mb-4">
           <TabsTrigger value="products">商品管理</TabsTrigger>
+          <TabsTrigger value="promotions">限时特价</TabsTrigger>
           <TabsTrigger value="orders">订单管理</TabsTrigger>
         </TabsList>
 
@@ -317,6 +427,65 @@ export function Admin() {
                   </Button>
                 </div>
               )}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="promotions">
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold">限时特价</h3>
+              <Button onClick={openPromoCreate}><Plus className="w-4 h-4 mr-2"/> 添加促销</Button>
+            </div>
+
+            <div className="border rounded-md bg-white">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="p-4">商品</th>
+                    <th className="p-4">原价</th>
+                    <th className="p-4">折扣价</th>
+                    <th className="p-4">开始时间</th>
+                    <th className="p-4">结束时间</th>
+                    <th className="p-4">状态</th>
+                    <th className="p-4 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {promotions.map(promo => (
+                    <tr key={promo.id} className="border-b hover:bg-gray-50">
+                      <td className="p-4 font-medium">{promo.product_name || `商品#${promo.product_id}`}</td>
+                      <td className="p-4">¥{promo.original_price ? Number(promo.original_price).toFixed(2) : '-'}</td>
+                      <td className="p-4 text-red-500 font-medium">¥{Number(promo.discount_price).toFixed(2)}</td>
+                      <td className="p-4 text-xs">{new Date(promo.start_time).toLocaleString()}</td>
+                      <td className="p-4 text-xs">{new Date(promo.end_time).toLocaleString()}</td>
+                      <td className="p-4">
+                        {promo.is_active ? (
+                          <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">进行中</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-500 border-gray-300 bg-gray-50">未开始/已结束</Badge>
+                        )}
+                      </td>
+                      <td className="p-4 text-right flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => openPromoEdit(promo)}>
+                          <Pencil className="w-4 h-4 text-blue-500"/>
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handlePromoDelete(promo.id)}>
+                          <Trash2 className="w-4 h-4 text-red-500"/>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {promotions.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-gray-500">
+                        <Tag className="w-8 h-8 mx-auto mb-2 opacity-20"/>
+                        暂无促销活动
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </TabsContent>
@@ -459,6 +628,65 @@ export function Admin() {
              <DialogFooter>
                <Button type="submit">保存修改</Button>
              </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isPromoDialogOpen} onOpenChange={setIsPromoDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingPromotion ? "编辑促销活动" : "添加促销活动"}</DialogTitle>
+            <DialogDescription>
+              设置限时特价折扣价和活动起止时间。
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePromoSubmit} className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>商品</Label>
+              <select
+                className="w-full border rounded-md px-3 py-2 text-sm"
+                value={promoFormData.product_id}
+                onChange={e => setPromoFormData({...promoFormData, product_id: e.target.value})}
+                disabled={!!editingPromotion}
+                required
+              >
+                <option value="">选择商品</option>
+                {allProducts.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} (¥{Number(p.price).toFixed(2)})</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>折扣价 (¥)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={promoFormData.discount_price}
+                onChange={e => setPromoFormData({...promoFormData, discount_price: e.target.value})}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>开始时间</Label>
+              <Input
+                type="datetime-local"
+                value={promoFormData.start_time}
+                onChange={e => setPromoFormData({...promoFormData, start_time: e.target.value})}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>结束时间</Label>
+              <Input
+                type="datetime-local"
+                value={promoFormData.end_time}
+                onChange={e => setPromoFormData({...promoFormData, end_time: e.target.value})}
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit">保存</Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

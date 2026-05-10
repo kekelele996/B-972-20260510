@@ -4,15 +4,17 @@ namespace App\Controllers;
 
 use App\Models\Eloquent\Product;
 use App\Models\Eloquent\OrderItem;
+use App\Models\Eloquent\Promotion;
 use App\Utils\Request;
 use App\Utils\Response;
+use Carbon\Carbon;
 
 class ProductController
 {
     public function index(): void
     {
         $page = (int)Request::query('page', 1);
-        $limit = (int)Request::query('limit', 0); // 0 means all for compatibility
+        $limit = (int)Request::query('limit', 0);
 
         $query = Product::orderBy('created_at', 'desc');
 
@@ -20,7 +22,7 @@ class ProductController
             $total = $query->count();
             $products = $query->skip(($page - 1) * $limit)->take($limit)->get();
             Response::json([
-                'products' => $products,
+                'products' => $this->appendPromotions($products),
                 'total' => $total,
                 'page' => $page,
                 'limit' => $limit,
@@ -28,8 +30,40 @@ class ProductController
             ]);
         } else {
             $products = $query->get();
-            Response::json($products);
+            Response::json($this->appendPromotions($products));
         }
+    }
+
+    private function appendPromotions($products): array
+    {
+        $now = Carbon::now();
+        $productIds = $products->pluck('id')->toArray();
+        $promotions = Promotion::whereIn('product_id', $productIds)
+            ->where('start_time', '<=', $now)
+            ->where('end_time', '>=', $now)
+            ->get()
+            ->keyBy('product_id');
+
+        return $products->map(function (Product $product) use ($promotions) {
+            $data = [
+                'id' => (int)$product->id,
+                'name' => (string)$product->name,
+                'description' => (string)$product->description,
+                'price' => (string)$product->price,
+                'image_url' => (string)$product->image_url,
+                'stock' => (int)$product->stock,
+                'created_at' => (string)$product->created_at,
+            ];
+            $promo = $promotions->get($product->id);
+            if ($promo) {
+                $data['promotion'] = [
+                    'discount_price' => (string)$promo->discount_price,
+                    'start_time' => (string)$promo->start_time,
+                    'end_time' => (string)$promo->end_time,
+                ];
+            }
+            return $data;
+        })->values()->toArray();
     }
 
     public function create(): void

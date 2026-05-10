@@ -6,6 +6,7 @@ use App\Controllers\AuthController;
 use App\Controllers\MessageController;
 use App\Controllers\OrderController;
 use App\Controllers\ProductController;
+use App\Controllers\PromotionController;
 use App\Utils\Response;
 
 // 初始化 Eloquent ORM
@@ -76,6 +77,12 @@ $routes = [
     'POST /orders' => [OrderController::class, 'create'],
     'GET /orders' => [OrderController::class, 'index'],
     'PUT /orders' => [OrderController::class, 'update'],
+
+    // Promotions
+    'GET /promotions' => [PromotionController::class, 'index'],
+    'POST /promotions' => [PromotionController::class, 'create'],
+    'PUT /promotions' => [PromotionController::class, 'update'],
+    'DELETE /promotions' => [PromotionController::class, 'delete'],
 ];
 
 $routeKey = "{$requestMethod} {$path}";
