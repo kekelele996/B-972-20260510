@@ -10,6 +10,9 @@ interface Product {
   name: string
   description: string
   price: number
+  discount_price: number | null
+  current_price: number
+  is_on_sale: boolean
   image_url: string
   stock: number
 }
@@ -75,7 +78,16 @@ export function Shop() {
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <CardTitle>{product.name}</CardTitle>
-                    <span className="font-bold text-primary">¥{Number(product.price).toFixed(2)}</span>
+                    <div className="text-right">
+                      {product.is_on_sale ? (
+                        <div className="flex flex-col items-end">
+                          <span className="text-sm text-gray-400 line-through">¥{Number(product.price).toFixed(2)}</span>
+                          <span className="font-bold text-red-500">¥{Number(product.current_price).toFixed(2)}</span>
+                        </div>
+                      ) : (
+                        <span className="font-bold text-primary">¥{Number(product.price).toFixed(2)}</span>
+                      )}
+                    </div>
                   </div>
                   <CardDescription>{product.description}</CardDescription>
                 </CardHeader>

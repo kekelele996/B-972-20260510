@@ -46,7 +46,7 @@ export const useStore = create<AppState>()(
             }
           }
           return {
-            cart: [...state.cart, { id: product.id, name: product.name, price: Number(product.price), quantity: 1 }],
+            cart: [...state.cart, { id: product.id, name: product.name, price: Number(product.current_price ?? product.price), quantity: 1 }],
           }
         }),
       removeFromCart: (productId) =>

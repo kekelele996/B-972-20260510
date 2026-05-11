@@ -43,10 +43,31 @@ class ProductController
             Response::json(['error' => 'Missing required fields'], 400);
         }
 
+        $discountPrice = isset($data['discount_price']) && $data['discount_price'] !== '' ? $data['discount_price'] : null;
+        $saleStartTime = !empty($data['sale_start_time']) ? $data['sale_start_time'] : null;
+        $saleEndTime = !empty($data['sale_end_time']) ? $data['sale_end_time'] : null;
+
+        if ($discountPrice !== null) {
+            if ($discountPrice >= $price) {
+                Response::json(['error' => '折扣价必须低于原价'], 400);
+            }
+        }
+
+        if ($saleStartTime !== null && $saleEndTime !== null) {
+            $start = new \DateTime($saleStartTime);
+            $end = new \DateTime($saleEndTime);
+            if ($start > $end) {
+                Response::json(['error' => '开始时间不能晚于结束时间'], 400);
+            }
+        }
+
         Product::create([
             'name' => $name,
             'description' => (string)($data['description'] ?? ''),
             'price' => $price,
+            'discount_price' => isset($data['discount_price']) && $data['discount_price'] !== '' ? $data['discount_price'] : null,
+            'sale_start_time' => !empty($data['sale_start_time']) ? $data['sale_start_time'] : null,
+            'sale_end_time' => !empty($data['sale_end_time']) ? $data['sale_end_time'] : null,
             'image_url' => (string)($data['image_url'] ?? ''),
             'stock' => (int)($data['stock'] ?? 0),
         ]);
@@ -68,10 +89,32 @@ class ProductController
             Response::json(['error' => 'Product not found'], 404);
         }
 
+        $price = $data['price'] ?? $product->price;
+        $discountPrice = isset($data['discount_price']) && $data['discount_price'] !== '' ? $data['discount_price'] : null;
+        $saleStartTime = !empty($data['sale_start_time']) ? $data['sale_start_time'] : null;
+        $saleEndTime = !empty($data['sale_end_time']) ? $data['sale_end_time'] : null;
+
+        if ($discountPrice !== null) {
+            if ($discountPrice >= $price) {
+                Response::json(['error' => '折扣价必须低于原价'], 400);
+            }
+        }
+
+        if ($saleStartTime !== null && $saleEndTime !== null) {
+            $start = new \DateTime($saleStartTime);
+            $end = new \DateTime($saleEndTime);
+            if ($start > $end) {
+                Response::json(['error' => '开始时间不能晚于结束时间'], 400);
+            }
+        }
+
         $product->fill([
             'name' => (string)($data['name'] ?? $product->name),
             'description' => (string)($data['description'] ?? $product->description),
-            'price' => $data['price'] ?? $product->price,
+            'price' => $price,
+            'discount_price' => $discountPrice,
+            'sale_start_time' => $saleStartTime,
+            'sale_end_time' => $saleEndTime,
             'image_url' => (string)($data['image_url'] ?? $product->image_url),
             'stock' => isset($data['stock']) ? (int)$data['stock'] : (int)$product->stock,
         ]);

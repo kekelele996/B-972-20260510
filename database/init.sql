@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS products (
     name VARCHAR(100) NOT NULL,
     description TEXT,
     price DECIMAL(10, 2) NOT NULL,
+    discount_price DECIMAL(10, 2) NULL,
+    sale_start_time DATETIME NULL,
+    sale_end_time DATETIME NULL,
     image_url VARCHAR(255),
     stock INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
