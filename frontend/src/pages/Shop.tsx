@@ -10,6 +10,12 @@ interface Product {
   name: string
   description: string
   price: number
+  current_price: number
+  original_price: number
+  is_on_sale: boolean
+  sale_price?: number
+  sale_start_time?: string
+  sale_end_time?: string
   image_url: string
   stock: number
 }
@@ -74,8 +80,22 @@ export function Shop() {
                 </div>
                 <CardHeader>
                   <div className="flex justify-between items-start">
-                    <CardTitle>{product.name}</CardTitle>
-                    <span className="font-bold text-primary">¥{Number(product.price).toFixed(2)}</span>
+                    <div className="flex items-center gap-2">
+                      <CardTitle>{product.name}</CardTitle>
+                      {product.is_on_sale && (
+                        <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded font-medium">限时特价</span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      {product.is_on_sale ? (
+                        <>
+                          <div className="font-bold text-red-500">¥{Number(product.current_price).toFixed(2)}</div>
+                          <div className="text-xs text-gray-400 line-through">¥{Number(product.original_price).toFixed(2)}</div>
+                        </>
+                      ) : (
+                        <span className="font-bold text-primary">¥{Number(product.price).toFixed(2)}</span>
+                      )}
+                    </div>
                   </div>
                   <CardDescription>{product.description}</CardDescription>
                 </CardHeader>
