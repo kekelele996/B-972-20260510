@@ -58,6 +58,16 @@ INSERT INTO users (username, email, password_hash, role, is_active) VALUES
 INSERT INTO users (username, email, password_hash, role, is_active) VALUES
 ('testuser', 'test@example.com', '$2y$10$/Sv3FlwATv89TMSxgt0H/.4Q5xusS1COSt3Sh7jDfmh6clcxZX2HO', 'user', 1);
 
+CREATE TABLE IF NOT EXISTS promotions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    discount_price DECIMAL(10, 2) NOT NULL,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
 -- 示例商品数据
 INSERT INTO products (name, description, price, image_url, stock) VALUES
 ('鲜肉包', '鲜美多汁的肉包', 2.50, '/images/meat_bun.png', 100),

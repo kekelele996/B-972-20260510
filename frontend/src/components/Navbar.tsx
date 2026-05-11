@@ -26,7 +26,10 @@ export function Navbar() {
   }
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0)
-  const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0)
+  const total = cart.reduce((acc, item) => {
+    const effectivePrice = item.discount_price != null ? item.discount_price : item.price
+    return acc + effectivePrice * item.quantity
+  }, 0)
 
   const handleCheckout = async () => {
     try {
@@ -131,11 +134,18 @@ export function Navbar() {
                                 >
                                     <Plus className="w-3 h-3" />
                                 </Button>
-                                <span className="text-xs text-muted-foreground ml-2">x ¥{item.price.toFixed(2)}</span>
+                                {item.discount_price != null ? (
+                                  <span className="text-xs ml-2">
+                                    <span className="text-muted-foreground line-through">¥{item.price.toFixed(2)}</span>
+                                    <span className="text-red-500 ml-1">¥{item.discount_price.toFixed(2)}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground ml-2">x ¥{item.price.toFixed(2)}</span>
+                                )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold">¥{(item.price * item.quantity).toFixed(2)}</span>
+                            <span className="font-bold">¥{((item.discount_price != null ? item.discount_price : item.price) * item.quantity).toFixed(2)}</span>
                             <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)}>
                               <Trash2 className="w-4 h-4 text-red-500" />
                             </Button>
