@@ -13,6 +13,7 @@ export interface CartItem {
   name: string
   price: number
   quantity: number
+  discount_price?: number | null
 }
 
 interface AppState {
@@ -46,7 +47,13 @@ export const useStore = create<AppState>()(
             }
           }
           return {
-            cart: [...state.cart, { id: product.id, name: product.name, price: Number(product.price), quantity: 1 }],
+            cart: [...state.cart, {
+              id: product.id,
+              name: product.name,
+              price: Number(product.price),
+              quantity: 1,
+              discount_price: product.promotion ? Number(product.promotion.discount_price) : null,
+            }],
           }
         }),
       removeFromCart: (productId) =>

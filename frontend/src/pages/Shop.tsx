@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 
+interface Promotion {
+  discount_price: string
+  start_time: string
+  end_time: string
+}
+
 interface Product {
   id: number
   name: string
@@ -12,6 +18,7 @@ interface Product {
   price: number
   image_url: string
   stock: number
+  promotion?: Promotion
 }
 
 export function Shop() {
@@ -75,9 +82,21 @@ export function Shop() {
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <CardTitle>{product.name}</CardTitle>
-                    <span className="font-bold text-primary">¥{Number(product.price).toFixed(2)}</span>
+                    <div className="flex flex-col items-end">
+                      {product.promotion ? (
+                        <>
+                          <span className="text-xs text-muted-foreground line-through">¥{Number(product.price).toFixed(2)}</span>
+                          <span className="font-bold text-red-500">¥{Number(product.promotion.discount_price).toFixed(2)}</span>
+                        </>
+                      ) : (
+                        <span className="font-bold text-primary">¥{Number(product.price).toFixed(2)}</span>
+                      )}
+                    </div>
                   </div>
                   <CardDescription>{product.description}</CardDescription>
+                  {product.promotion && (
+                    <span className="inline-block mt-1 text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded">限时特价</span>
+                  )}
                 </CardHeader>
                 <CardFooter>
                   <Button 

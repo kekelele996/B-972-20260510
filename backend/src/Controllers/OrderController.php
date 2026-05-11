@@ -5,8 +5,10 @@ namespace App\Controllers;
 use App\Models\Eloquent\Order;
 use App\Models\Eloquent\OrderItem;
 use App\Models\Eloquent\Product;
+use App\Models\Eloquent\Promotion;
 use App\Utils\Request;
 use App\Utils\Response;
+use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 class OrderController
@@ -24,10 +26,10 @@ class OrderController
 
         try {
             $orderId = Capsule::connection()->transaction(function () use ($userId, $items) {
-                // First pass to calculate total and validate
                 $calculatedTotal = 0;
                 $productsData = [];
-                
+                $now = Carbon::now();
+
                 foreach ($items as $item) {
                     $productId = (int)($item['id'] ?? 0);
                     $qty = (int)($item['quantity'] ?? 0);
@@ -46,16 +48,23 @@ class OrderController
                         throw new \RuntimeException("库存不足：{$product->name}");
                     }
 
+                    $promotion = Promotion::where('product_id', $productId)
+                        ->where('start_time', '<=', $now)
+                        ->where('end_time', '>=', $now)
+                        ->first();
+
+                    $effectivePrice = $promotion ? (float)$promotion->discount_price : (float)$product->price;
+
                     $productsData[] = [
                         'productId' => $productId,
                         'qty' => $qty,
-                        'price' => $product->price,
+                        'price' => $effectivePrice,
                         'name' => $product->name,
                         'image_url' => $product->image_url,
                         'product' => $product
                     ];
-                    
-                    $calculatedTotal += $product->price * $qty;
+
+                    $calculatedTotal += $effectivePrice * $qty;
                 }
 
                 $order = Order::create([
